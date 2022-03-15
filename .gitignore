@@ -1,0 +1,13 @@
+build/
+*.kdev4
+campoelettrico
+run.sh
+.ccls
+compile_commands.json
+imgui.ini
+.clang-format
+.cache/
+*.swp
+.vscode/
+.kdev4/
+imgui.ini
