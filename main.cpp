@@ -1,3 +1,4 @@
+#include "ui/imgui.h"
 #include "ui/imgui_impl_sdl.h"
 #include <CppLinuxSerial/SerialPort.hpp>
 #include <SDL2/SDL.h>
@@ -8,6 +9,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -76,7 +78,8 @@ std::vector<std::string> get_available_ports() {
   const fs::path p("/dev/serial/by-id");
   try {
     if (!exists(p)) {
-      throw std::runtime_error(p.generic_string() + " does not exist");
+      //throw std::runtime_error(p.generic_string() + " does not exist");
+						std::cout << "No serial ports found\n";
     } else {
       for (fs::directory_entry de : fs::directory_iterator(p)) {
         if (is_symlink(de.symlink_status())) {
@@ -146,6 +149,8 @@ int main(int argc, char **argv) {
     std::cout << porta << std::endl;
   }
 
+	char bufPorta[20] = "/dev/ttyUSB0";
+	char bufPortaInput[20] = "/dev/ttyUSB0";
   // ---------------------------------------------------------------------------
 
   // Create serial port object and open serial port at 57600 buad, 8 data bits,
@@ -224,6 +229,7 @@ int main(int argc, char **argv) {
     ImGui::SetNextWindowDockID(main_dock, ImGuiCond_FirstUseEver);
     ImGui::Begin("Data");
     ImGui::Text("Available interfaces: \n%s", porteDisponibiliString.c_str());
+		ImGui::Text("Current interface: %s", bufPorta);
 
     if (started) {
       if (ImGui::Button("T")) {
@@ -246,6 +252,10 @@ int main(int argc, char **argv) {
         serialPort.Close();
       }
     } else {
+			if(ImGui::InputText("Device", bufPortaInput, 20, ImGuiInputTextFlags_EnterReturnsTrue)) {
+							strcpy(bufPorta, bufPortaInput);
+							serialPort.SetDevice(bufPorta);
+			}
       if (ImGui::Button("Start")) {
         serialPort.Open();
         std::cout << "starting execution\n";

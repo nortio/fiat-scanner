@@ -55,7 +55,7 @@ void renderUi(SDL_Window *gWindow) {
   ImGui::End();
 
   // Rendering ImGUI
-  //ImGui::ShowDemoWindow();
+  ImGui::ShowDemoWindow();
 
 
 }
