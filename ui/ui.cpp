@@ -39,10 +39,6 @@ void renderUi(SDL_Window *gWindow) {
       ImGui::DockBuilderFinish(dockspace_id);
     }
   }
-  
-  ImGui::SetNextWindowDockID(main_dock, ImGuiCond_FirstUseEver);
-  ImGui::Begin("Test");
-  ImGui::End();
 
   ImGui::SetNextWindowDockID(sidebar_dock, ImGuiCond_FirstUseEver);
   ImGui::Begin("Settings");
@@ -59,7 +55,7 @@ void renderUi(SDL_Window *gWindow) {
   ImGui::End();
 
   // Rendering ImGUI
-  ImGui::ShowDemoWindow();
+  //ImGui::ShowDemoWindow();
 
 
 }
