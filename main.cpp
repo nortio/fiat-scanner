@@ -230,20 +230,15 @@ int main(int argc, char **argv) {
     ImGui::Begin("Data");
     ImGui::Text("Available interfaces: \n%s", porteDisponibiliString.c_str());
 		ImGui::Text("Current interface: %s", bufPorta);
-
+    std::vector<uint8_t> dataToSend;
     if (started) {
       if (ImGui::Button("T")) {
         msSent = std::chrono::duration_cast<std::chrono::milliseconds>(
                      std::chrono::system_clock::now().time_since_epoch())
                      .count();
-        serialPort.Write("t");
-      }
-      ImGui::SameLine();
-      if (ImGui::Button("X")) {
-        msSent = std::chrono::duration_cast<std::chrono::milliseconds>(
-                     std::chrono::system_clock::now().time_since_epoch())
-                     .count();
-        serialPort.Write("x");
+        dataToSend.push_back(0x33);
+        serialPort.WriteBinary(dataToSend);
+        dataToSend.clear();
       }
       if (ImGui::Button("Stop")) {
         std::cout << "Stopping execution\n";
