@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "IconsMaterialDesign.h"
 
 bool initial_layout_done;
 ImGuiID main_dock;
@@ -41,7 +42,7 @@ void renderUi(SDL_Window *gWindow) {
   }
 
   ImGui::SetNextWindowDockID(sidebar_dock, ImGuiCond_FirstUseEver);
-  ImGui::Begin("Settings");
+  ImGui::Begin(ICON_MD_SETTINGS " Settings");
   ImGui::End();
 
   ImGui::SetNextWindowDockID(sidebarBottom, ImGuiCond_FirstUseEver);
@@ -55,6 +56,7 @@ void renderUi(SDL_Window *gWindow) {
   ImGui::End();
 
   // Rendering ImGUI
+  ImGui::SetNextWindowDockID(sidebarBottom, ImGuiCond_FirstUseEver);
   ImGui::ShowDemoWindow();
 
 

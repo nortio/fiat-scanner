@@ -2,11 +2,12 @@ cmake_minimum_required(VERSION 3.1)
 
 project(test)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O3 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -g -O3 -Wall -Wextra")
 
 add_executable(test
 main.cpp
 timer.cpp
+interfaces.cpp
 ui/ui.cpp
 ui/imgui.cpp
 ui/imgui_demo.cpp

@@ -1,5 +1,8 @@
+#include "interfaces.hpp"
+#include "ui/IconsMaterialDesign.h"
 #include "ui/imgui.h"
 #include "ui/imgui_impl_sdl.h"
+#include "ui/material_icons.h"
 #include <CppLinuxSerial/SerialPort.hpp>
 #include <SDL2/SDL.h>
 
@@ -19,7 +22,7 @@
 #error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
 #endif
 
-#define WINDOW_TITLE "SDL + Imgui"
+#define WINDOW_TITLE "fiat-scanner"
 unsigned int SCREEN_HEIGHT = 720;
 unsigned int SCREEN_WIDTH = 1280;
 float coloreSfondo[4] = {0, 0, 0, 1};
@@ -38,20 +41,27 @@ bool init() {
     success = false;
   } else {
 
+    SDL_DisplayMode displayMode;
+    SDL_GetCurrentDisplayMode(0, &displayMode);
+    SCREEN_WIDTH = displayMode.w;
+    SCREEN_HEIGHT = displayMode.h;
+
     // THIS MAKES SURE COMPOSITOR IS NOT DISABLED AUTOMATICALLY ON LINUX
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
     SDL_WindowFlags window_flags =
         (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE |
-                          SDL_WINDOW_ALLOW_HIGHDPI);
+                          SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_FULLSCREEN);
 
     gWindow = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED,
                                SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
                                SCREEN_HEIGHT, window_flags);
+
     if (gWindow == NULL) {
       printf("Window could not be initialized, error: %s\n", SDL_GetError());
       success = false;
     } else {
-      gRenderer = SDL_CreateRenderer(gWindow, -1, SDL_RENDERER_ACCELERATED);
+      gRenderer = SDL_CreateRenderer(
+          gWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
       if (gRenderer == NULL) {
         printf("Renderer could not be initialized, error: "
                "%s\n",
@@ -67,34 +77,6 @@ bool init() {
     }
   }
   return success;
-}
-
-using std::cout;
-namespace fs = std::filesystem;
-
-std::vector<std::string> get_available_ports() {
-  std::vector<std::string> port_names;
-
-  const fs::path p("/dev/serial/by-id");
-  try {
-    if (!exists(p)) {
-      //throw std::runtime_error(p.generic_string() + " does not exist");
-						std::cout << "No serial ports found\n";
-    } else {
-      for (fs::directory_entry de : fs::directory_iterator(p)) {
-        if (is_symlink(de.symlink_status())) {
-          fs::path symlink_points_at = read_symlink(de);
-          fs::path canonical_path = fs::canonical(p / symlink_points_at);
-          port_names.push_back(canonical_path.generic_string());
-        }
-      }
-    }
-  } catch (const fs::filesystem_error &ex) {
-    cout << ex.what() << '\n';
-    throw ex;
-  }
-  std::sort(port_names.begin(), port_names.end());
-  return port_names;
 }
 
 using namespace mn::CppLinuxSerial;
@@ -129,9 +111,29 @@ int main(int argc, char **argv) {
   ImGuiIO &io = ImGui::GetIO();
   (void)io;
 
+  ImGuiStyle& style = ImGui::GetStyle();
+  style.WindowPadding = ImVec2(12,12);
+  style.FramePadding = ImVec2(14,6);
+  style.ItemSpacing = ImVec2(16,8);
+  style.ItemInnerSpacing = ImVec2(8,8);
+  style.TouchExtraPadding = ImVec2(4,4);
+  style.ScrollbarSize = 18;
+  style.GrabMinSize = 18;
+
+
   io.WantCaptureKeyboard = true;
   io.Fonts->AddFontFromMemoryCompressedTTF(robotoFont_compressed_data,
-                                           robotoFont_compressed_size, 16);
+                                           robotoFont_compressed_size, 28);
+
+  static const ImWchar icons_ranges[] = {ICON_MIN_MD, ICON_MAX_16_MD, 0};
+  ImFontConfig icons_config;
+  icons_config.MergeMode = true;
+  icons_config.PixelSnapH = true;
+
+  icons_config.GlyphOffset.y += 3.0f;
+  io.Fonts->AddFontFromMemoryCompressedTTF(material_icons_compressed_data,
+                                           material_icons_compressed_size,
+                                           28.0f, &icons_config, icons_ranges);
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
   io.IniFilename = NULL;
 
@@ -142,22 +144,18 @@ int main(int argc, char **argv) {
   ImGui_ImplSDL2_InitForSDLRenderer(gWindow, gRenderer);
   ImGui_ImplSDLRenderer_Init(gRenderer);
 
-  std::vector<std::string> porteSeriali = get_available_ports();
-  std::string porteDisponibiliString = "";
-  for (auto porta : porteSeriali) {
-    porteDisponibiliString += porta + "\n";
-    std::cout << porta << std::endl;
-  }
-
-	char bufPorta[20] = "/dev/ttyUSB0";
-	char bufPortaInput[20] = "/dev/ttyUSB0";
-  // ---------------------------------------------------------------------------
-
   // Create serial port object and open serial port at 57600 buad, 8 data bits,
   // no parity bit, and one stop bit (8n1)
-  SerialPort serialPort("/dev/ttyUSB0", BaudRate::B_57600, NumDataBits::EIGHT,
+  SerialPort serialPort("/dev/ttyS0", BaudRate::B_57600, NumDataBits::EIGHT,
                         Parity::NONE, NumStopBits::ONE);
   serialPort.SetTimeout(0);
+
+  SerialInterfaceManager serialManager = SerialInterfaceManager(&serialPort);
+  size_t nInterfaces = serialManager.getInterfacesCount();
+  Interface currentInterface = serialManager.getCurrentInterface();
+  std::string currentInterfaceName = currentInterface.device;
+
+  // ---------------------------------------------------------------------------
 
   // Use SerialPort serialPort("/dev/ttyACM0", 13000); instead if you want to
   // provide a custom baud rate
@@ -228,8 +226,21 @@ int main(int argc, char **argv) {
 
     ImGui::SetNextWindowDockID(main_dock, ImGuiCond_FirstUseEver);
     ImGui::Begin("Data");
-    ImGui::Text("Available interfaces: \n%s", porteDisponibiliString.c_str());
-		ImGui::Text("Current interface: %s", bufPorta);
+    ImGui::BeginGroup();
+    serialManager.renderCombo();
+    ImGui::EndGroup();
+    ImGui::SameLine();
+    ImGui::BeginGroup();
+    if (ImGui::Button(ICON_MD_REFRESH " Refresh serial interfaces")) {
+      serialManager.refreshInterfaces();
+      nInterfaces = serialManager.getInterfacesCount();
+    };
+
+    if (nInterfaces < 1) {
+      ImGui::BeginDisabled(true);
+      ImGui::TextColored(ImVec4{255, 0, 0, 1}, "No serial interface detected");
+    }
+    ImGui::EndGroup();
     std::vector<uint8_t> dataToSend;
     if (started) {
       if (ImGui::Button("T")) {
@@ -246,12 +257,11 @@ int main(int argc, char **argv) {
         serialThread->join();
         serialPort.Close();
       }
+      if (ImGui::Button(ICON_MD_POWER_SETTINGS_NEW " Inizializza centralina")) {
+      }
     } else {
-			if(ImGui::InputText("Device", bufPortaInput, 20, ImGuiInputTextFlags_EnterReturnsTrue)) {
-							strcpy(bufPorta, bufPortaInput);
-							serialPort.SetDevice(bufPorta);
-			}
-      if (ImGui::Button("Start")) {
+
+      if (ImGui::Button(ICON_MD_PLAY_CIRCLE_FILL " Start")) {
         serialPort.Open();
         std::cout << "starting execution\n";
         started = true;
@@ -259,10 +269,14 @@ int main(int argc, char **argv) {
                                        std::ref(readData));
       }
     }
-
+    if (nInterfaces < 1)
+      ImGui::EndDisabled();
     ImGui::Text(readData.c_str());
     ImGui::Text("Average ping time: %fms", (msArrived - msSent) / 2.0f);
 
+    if(ImGui::Button("Esci")) {
+      quit = true;
+    }
     ImGui::End();
 
     ImGui::Render();
